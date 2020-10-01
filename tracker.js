@@ -252,9 +252,12 @@ function filterChanged(evt) {
 
   if (
     (!gHasFlags && gFilterEls.flags.checked) ||
-      !gHasSprintPlanning && gFilterEls.sprint.checked
-  ) {
+      (!gHasSprintPlanning && gFilterEls.sprint.checked)
+    ) {
     requireNewFetch = true;
+    // By checking one of these boxes, we need to fetch new information for the
+    // entire tree of bugs. Clear the cache.
+    gBugs = {};
   }
 
   document.getElementById("list").dataset.product = getFilterValue(gFilterEls.product);
