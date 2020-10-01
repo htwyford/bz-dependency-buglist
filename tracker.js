@@ -28,8 +28,6 @@ var gColumns = {
   "component": "Comp.",
   "summary": "Summary",
   "whiteboard": "Whiteboard",
-  //"cf_fx_points": "Points",
-  "cf_fx_iteration": "Iter.",
   "priority": "Pri.",
   //"milestone": "M?",
   "keywords": "Keywords",
@@ -56,6 +54,7 @@ var gFilterEls = {};
 var gSortColumn = null;
 var gSortDirection = null;
 var gHasFlags = false;
+var gHasSprintPlanning = false;
 var gLastPrintTime = 0;
 /**
  * Array of depths containing bugs still to fetch which were found at that depth.
@@ -251,19 +250,16 @@ function filterChanged(evt) {
   var assigneeFilter = document.getElementById("assigneeFilter");
   var flagFilter = document.getElementById("showFlags");
 
-  if (!gHasFlags && gFilterEls.flags.checked) {
+  if (
+    (!gHasFlags && gFilterEls.flags.checked) ||
+      !gHasSprintPlanning && gFilterEls.sprint.checked
+  ) {
     requireNewFetch = true;
   }
 
   document.getElementById("list").dataset.product = getFilterValue(gFilterEls.product);
 
-  if (gFilterEls.flags.checked) {
-    gColumns["flags"] = "Flags";
-    gColumns["attachments"] = "Attachment Flags";
-  } else {
-    delete gColumns["flags"];
-    delete gColumns["attachments"];
-  }
+  updateFromCheckboxes();
 
   window.history.pushState(gUrlParams, "", buildURL());
 
@@ -313,13 +309,7 @@ function fetchBugs(blocks, depth) {
     }
   }
 
-  if (gFilterEls.flags.checked) {
-    gColumns["flags"] = "Flags";
-    gColumns["attachments"] = "Attachment Flags";
-  } else {
-    delete gColumns["flags"];
-    delete gColumns["attachments"];
-  }
+  updateFromCheckboxes();
 
   var bzColumns = Object.keys(gColumns).filter(function(val) { // gColumns without virtual columns (e.g. milestone)
     return VIRTUAL_COLUMNS.indexOf(val) === -1;
@@ -330,12 +320,14 @@ function fetchBugs(blocks, depth) {
         "&include_fields=depends_on,blocks," + bzColumns.join(",");
 
   var hasFlags = gFilterEls.flags.checked;
+  var hasSprintPlanning = gFilterEls.sprint.checked;
   var xhr = new XMLHttpRequest();
   var callback = handleBugsResponse.bind(this, depth);
   xhr.onreadystatechange = function progressListener() {
     if (this.readyState == 4) {
       if (this.status == 200) {
         gHasFlags = hasFlags;
+        gHasSprintPlanning = hasSprintPlanning;
         callback.call(this, this.responseText);
       } else {
         setStatus(this.statusText);
@@ -641,6 +633,7 @@ function loadFilterValues(state) {
   gFilterEls.meta.checked = ("meta" in state ? state.meta : "") !== "0";
   gFilterEls.mMinus.checked = ("mMinus" in state ? state.mMinus : "") === "1";
   gFilterEls.flags.checked = ("flags" in state ? state.flags : "") === "1";
+  gFilterEls.sprint.checked = ("sprint" in state ? state.sprint : "") === "1";
   gFilterEls.whiteboard.value = ("whiteboard" in state ? state.whiteboard : "");
   gFilterEls.maxdepth.value = ("maxdepth" in state ? state.maxdepth : DEFAULT_MAX_DEPTH);
   gSortColumn = ("sortColumn" in state ? state.sortColumn : gSortColumn);
@@ -674,15 +667,13 @@ function init() {
   gFilterEls.mMinus = document.getElementById("showMMinus");
   gFilterEls.assignee = document.getElementById("assigneeFilter");
   gFilterEls.flags = document.getElementById("showFlags");
+  gFilterEls.sprint = document.getElementById("sprintPlanning");
   gFilterEls.maxdepth = document.getElementById("maxDepth");
   gFilterEls.whiteboard = document.getElementById("whiteboardFilter");
 
   parseQueryParams();
 
-  if (gFilterEls.flags.checked) {
-    gColumns["flags"] = "Flags";
-    gColumns["attachments"] = "Attachment Flags";
-  }
+  updateFromCheckboxes();
 
   // Add filter listeners after loading values
   gFilterEls.assignee.addEventListener("change", filterChanged);
@@ -691,6 +682,7 @@ function init() {
   gFilterEls.meta.addEventListener("change", filterChanged);
   gFilterEls.mMinus.addEventListener("change", filterChanged);
   gFilterEls.flags.addEventListener("change", filterChanged);
+  gFilterEls.sprint.addEventListener("change", filterChanged);
   gFilterEls.maxdepth.addEventListener("input", filterChanged);
   gFilterEls.whiteboard.addEventListener("input", filterChanged);
 
@@ -698,6 +690,27 @@ function init() {
   printList(true);
 
   getBugsUnderRoot();
+}
+
+/**
+ * Updates the available columns based on the values of the column checkboxes.
+ */
+function updateFromCheckboxes() {
+  if (gFilterEls.flags.checked) {
+    gColumns["flags"] = "Flags";
+    gColumns["attachments"] = "Attachment Flags";
+  } else {
+    delete gColumns["flags"];
+    delete gColumns["attachments"];
+  }
+
+  if (gFilterEls.sprint.checked) {
+    gColumns["cf_fx_points"] = "Pts.";
+    gColumns["cf_fx_iteration"] = "Iteration";
+  } else {
+    delete gColumns["cf_fx_points"];
+    delete gColumns["cf_fx_iteration"];
+  }
 }
 
 /**
@@ -727,6 +740,7 @@ function getBugsUnderRoot() {
     document.getElementById("list").hidden = true;
     document.getElementById("tools").hidden = true;
     document.getElementById("showFlagsLabel").hidden = true;
+    document.getElementById("sprintPlanningLabel").hidden = true;
     return;
   }
 
