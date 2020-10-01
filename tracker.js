@@ -252,9 +252,12 @@ function filterChanged(evt) {
 
   if (
     (!gHasFlags && gFilterEls.flags.checked) ||
-      !gHasSprintPlanning && gFilterEls.sprint.checked
-  ) {
+      (!gHasSprintPlanning && gFilterEls.sprint.checked)
+    ) {
     requireNewFetch = true;
+    // By checking one of these boxes, we need to fetch new information for the
+    // entire tree of bugs. Clear the cache.
+    gBugs = {};
   }
 
   document.getElementById("list").dataset.product = getFilterValue(gFilterEls.product);
@@ -633,7 +636,8 @@ function loadFilterValues(state) {
   gFilterEls.meta.checked = ("meta" in state ? state.meta : "") !== "0";
   gFilterEls.mMinus.checked = ("mMinus" in state ? state.mMinus : "") === "1";
   gFilterEls.flags.checked = ("flags" in state ? state.flags : "") === "1";
-  gFilterEls.sprint.checked = ("sprint" in state ? state.sprint : "") === "1";
+  // Sprint planning is checked by default.
+  gFilterEls.sprint.checked = ("sprint" in state ? state.sprint : "") !== "0";
   gFilterEls.whiteboard.value = ("whiteboard" in state ? state.whiteboard : "");
   gFilterEls.maxdepth.value = ("maxdepth" in state ? state.maxdepth : DEFAULT_MAX_DEPTH);
   gSortColumn = ("sortColumn" in state ? state.sortColumn : gSortColumn);
